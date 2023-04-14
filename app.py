@@ -19,7 +19,7 @@ db.init_app(app)
 app.debug=True
 #注册蓝图
 app.register_blueprint(accounts,url_prefix='/account')
-app.register_blueprint(qa,url_prefix='/qa')
+app.register_blueprint(qa,url_prefix='/')
 
 #注册过滤器
 app.jinja_env.filters['number_split']=number_split
