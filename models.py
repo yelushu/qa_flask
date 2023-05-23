@@ -1,9 +1,10 @@
 from datetime import datetime
+
 from flask_sqlalchemy import SQLAlchemy
 
-from tools import constants as st
+from utils import constants
 
-db=SQLAlchemy()
+db = SQLAlchemy()
 
 
 class User(db.Model):
@@ -20,17 +21,36 @@ class User(db.Model):
 
     # 是否有效，无效用户将不能登录系统
     status = db.Column(db.SmallInteger,
-                       default=st.UserStatus.USER_ACTIVE.value,
+                       default=constants.UserStatus.USER_ACTIVE.value,
                        comment='用户状态')
     # 是否是超级管理员，管理员可以对所有内容进行管理
     is_super = db.Column(db.SmallInteger,
-                         default=st.UserRole.COMMON.value)
+                         default=constants.UserRole.COMMON.value)
     # 创建时间
     created_at = db.Column(db.DateTime, default=datetime.now)
     # 最后修改的时间
     updated_at = db.Column(db.DateTime,
                            default=datetime.now, onupdate=datetime.now)
     # profile = db.relationship('UserProfile')
+
+    @property
+    def is_authenticated(self):
+        return True
+
+    @property
+    def is_active(self):
+        """ 有效的用户才能登录系统 """
+        return self.status == constants.UserStatus.USER_ACTIVE.value
+
+    @property
+    def is_anonymous(self):
+        return False
+
+    def get_id(self):
+        return '{}'.format(self.id)
+
+    def __str__(self):
+        return self.nickname
 
 
 class UserProfile(db.Model):
@@ -103,21 +123,34 @@ class Question(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('accounts_user.id'))
     # 建立与用户的一对多属性,user.question_list
     user = db.relationship('User', backref=db.backref('question_list', lazy='dynamic'))
-    @property
-    def comment_count(self):#问题数
-        "评论数量"
-        return self.answer_comment_list.filter_by(is_valid=True).count()
 
     @property
-    def follow_count(self):  # 关注数
-        "关注数量"
+    def get_img_url(self):
+        return 'medias/' + self.img if self.img else ''
+
+    @property
+    def comment_count(self):
+        """ 评论数量 """
+        return self.question_comment_list.filter_by(is_valid=True).count()
+
+    @property
+    def follow_count(self):
+        """ 关注数量 """
         return self.question_follow_list.filter_by(is_valid=True).count()
 
     @property
     def answer_count(self):
-        "回答的数量"
         return self.answer_list.filter_by(is_valid=True).count()
 
+    @property
+    def tags(self):
+        """ 文章的标签 """
+        return self.tag_list.filter_by(is_valid=True)
+
+    @property
+    def love_count(self):
+        """ 点赞的数量 """
+        return self.question_love_list.count()
 
 
 class QuestionTags(db.Model):
@@ -157,13 +190,20 @@ class Answer(db.Model):
     user = db.relationship('User', backref=db.backref('answer_list', lazy='dynamic'))
     # 建立与问题的一对多属性
     question = db.relationship('Question', backref=db.backref('answer_list', lazy='dynamic'))
+
     @property
     def love_count(self):
+        """ 点赞的数量 """
         return self.answer_love_list.count()
-    @property
-    def content_count(self):
-        return self.answer_comment_list.count()
 
+    def comment_list(self, reply_id=None):
+        """ 有效的评论列表 """
+        return  self.answer_comment_list.filter_by(is_valid=True, reply_id=reply_id)
+
+    @property
+    def comment_count(self):
+        """ 评论的数量 """
+        return  self.answer_comment_list.filter_by(is_valid=True).count()
 
 
 class AnswerComment(db.Model):

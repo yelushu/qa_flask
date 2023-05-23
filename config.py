@@ -1,4 +1,5 @@
 import os
+import pymysql
 
 "配置文件"
 
